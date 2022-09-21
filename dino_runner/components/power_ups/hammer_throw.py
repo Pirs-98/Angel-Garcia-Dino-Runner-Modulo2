@@ -15,7 +15,7 @@ class HammerThrow(Sprite):
     def update(self, throw_speed, hammers_throw):
         self.rect.x += throw_speed
         if self.rect.x > SCREEN_WIDTH + self.rect.width:
-            hammers_throw.remove()
+            hammers_throw.pop()
 
     def draw(self, screen):
         screen.blit(self.image, self.rect)

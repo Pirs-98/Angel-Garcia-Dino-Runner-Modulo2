@@ -1,8 +1,9 @@
 import pygame, sys
 
+from dino_runner.components.cloud import Cloud
 from dino_runner.components.message import draw_message
 from dino_runner.components.power_ups.hammer_throw_manager import HammerThrowManager
-from dino_runner.utils.constants import BG, ICON, SCREEN_HEIGHT, SCREEN_WIDTH, TITLE, FPS, FONT_STYLE, DEFAULT_TYPE
+from dino_runner.utils.constants import BG, CLOUD, GAME_OVER, ICON, SCREEN_HEIGHT, SCREEN_WIDTH, SOUND, TITLE, FPS, FONT_STYLE, DEFAULT_TYPE
 from dino_runner.components.dinosaur import Dinosaur
 from dino_runner.components.obstacles.obstacle_manager import ObstacleManager
 from dino_runner.components.power_ups.power_up_manager import PowerUpManager
@@ -23,10 +24,13 @@ class Game:
         self.obstacle_manager = ObstacleManager()
         self.power_up_manager = PowerUpManager()
         self.hammer_throw_manager = HammerThrowManager()
+        self.cloud = Cloud()
+        self.cloud_speed = self.game_speed - 8
         self.running = False
         self.score = 0
         self.best_score = 0
         self.death_count = 0
+        self.life_count = 5
         self.throw_speed = self.game_speed + 10
 
     def execute(self):
@@ -47,6 +51,7 @@ class Game:
     def run(self):
         # Game loop: events - update - draw
         self.reset_game()
+        SOUND['START_SOUND'].play()
         while self.playing:
             self.events()
             self.update()
@@ -58,17 +63,20 @@ class Game:
                 self.playing = False
 
     def update(self):
+        self.cloud.update(self.cloud_speed)
         self.update_score()
         user_input = pygame.key.get_pressed()
         self.player.update(user_input)
-        self.obstacle_manager.update(self)
-        self.power_up_manager.update(self)
         self.hammer_throw_manager.update(self, user_input)
+        self.power_up_manager.update(self)
+        self.obstacle_manager.update(self)
+        self.update_lifes()
 
     def draw(self):
         self.clock.tick(FPS)
         self.screen.fill((255, 255, 255))
         self.draw_background()
+        self.cloud.draw(self.screen)
         self.draw_score()
         self.draw_power_up_time()
         self.player.draw(self.screen)
@@ -91,23 +99,25 @@ class Game:
         draw_message(f'Score {self.score}', self.screen, pos_x_center = 1000, pos_y_center = 50)
 
     def draw_power_up_time(self):
-        if self.player.has_power_up:
+        if self.player.has_hammer_power_up or self.player.has_shield_power_up:
             time_to_show = round((self.player.power_time_up - pygame.time.get_ticks()) / 1000, 2)
             if time_to_show >= 0:
                 draw_message(f'{self.player.type.capitalize()} enable for {time_to_show} seconds', self.screen, font_size = 19, pos_y_center = 100)
             else:
-                self.has_power_up = False
+                self.player.has_hammer_power_up = False
+                self.player.has_shield_power_up = False
                 self.player.type = DEFAULT_TYPE
-
 
     def update_score(self):
         self.score += 1
         if self.score % 100 == 0 and self.game_speed < 2000:
-            self.game_speed += 2
+            self.game_speed += 1.5
         if self.score > self.best_score:
             self.best_score = self.score
-        
 
+    def update_lifes(self):
+        self.life_count = 5 - self.death_count
+        
     def handle_events_on_menu(self):
         if self.death_count > 4:
             pygame.time.delay(4000)
@@ -125,21 +135,22 @@ class Game:
         self.screen.fill((255, 255, 255))
         half_screen_height = SCREEN_HEIGHT // 2
         half_screen_width = SCREEN_WIDTH // 2
+        self.screen.blit(ICON, (half_screen_width - 40, half_screen_height - 120))
 
         if self.death_count == 0:
-            draw_message('Press any key to start ..', self.screen, pos_y_center = half_screen_height + 70)
+            draw_message('Press any key to start ..', self.screen, pos_y_center = half_screen_height + 100)
+            draw_message(f'You start with {self.life_count} lifes', self.screen, pos_y_center = 500)
         else:
             if self.death_count < 5:
                 draw_message('Press any key to restart', self.screen, pos_y_center = half_screen_height + 100)
+                draw_message(f'You have {self.life_count} lifes', self.screen, font_size = 25, pos_y_center = 500)
             if self.death_count > 4:
-                draw_message('G A M E  O V E R ...', self.screen, font_size = 40, pos_y_center = 120)
-                draw_message('You no longer have lives', self.screen, font_size = 25, pos_x_center = 950, pos_y_center = 5 )
-                
+                self.screen.blit(GAME_OVER, (355, 150))
+                draw_message('You no longer have lives', self.screen, font_size = 25, pos_y_center = 500)
             draw_message(f'Your Score: {self.score}', self.screen, pos_y_center = half_screen_height + 40)
             draw_message(f'High Score: {self.best_score}', self.screen)
             draw_message(f'Death count: {self.death_count}', self.screen, font_size = 25, pos_x_center = 1000, pos_y_center = 30)
-
-        self.screen.blit(ICON, (half_screen_width - 40, half_screen_height - 115))
+            
         pygame.display.update()
         self.handle_events_on_menu()
 

@@ -1,7 +1,7 @@
 import pygame, random
 from dino_runner.components.power_ups.power_up_manager import PowerUpManager
 
-from dino_runner.utils.constants import BIRD, DEFAULT_TYPE, LARGE_CACTUS, SHIELD_TYPE, SMALL_CACTUS
+from dino_runner.utils.constants import BIRD, DEFAULT_TYPE, LARGE_CACTUS, SHIELD_TYPE, HAMMER_TYPE, SMALL_CACTUS, SOUND
 from dino_runner.components.obstacles.cactus import Cactus
 from dino_runner.components.obstacles.bird import Bird
 
@@ -19,28 +19,29 @@ class ObstacleManager:
             else:
                 bird = Bird(BIRD)
                 self.obstacles.append(bird)
-
-        hammer_thr = None
-        if len(game.hammer_throw_manager.hammers_throw) > 0:
-            hammer_thr = game.hammer_throw_manager.hammers_throw[0]
-            hammer_thr.update(game.throw_speed, self)
+        hammers_throw = game.hammer_throw_manager.hammers_throw
         for obstacle in self.obstacles:
             obstacle.update(game.game_speed, self.obstacles)
-            if hammer_thr and hammer_thr.rect.colliderect(obstacle.rect):
-                self.obstacles.remove(obstacle)
-                game.hammer_throw_manager.hammers_throw.remove(hammer_thr)
-                game.player.has_power_up = False
-                game.player.type = DEFAULT_TYPE
             if game.player.dino_rect.colliderect(obstacle.rect):
-                if game.player.type != SHIELD_TYPE:
+                if game.player.type != (SHIELD_TYPE):
                     pygame.time.delay(1000)
+                    SOUND['DEAD_SOUND'].play()
                     game.death_count += 1
-                    game.playing = False
-                    game.player.has_power_up = False
+                    game.player.has_shield_power_up = False
+                    game.player.has_hammer_power_up = False
                     game.player.type = DEFAULT_TYPE
+                    game.playing = False
                     break
                 else:
                     self.obstacles.remove(obstacle)
+            for hammer_throw in hammers_throw:
+                hammer_throw.update(game.throw_speed, hammers_throw)
+                if hammer_throw.rect.colliderect(obstacle.rect):
+                    self.obstacles.remove(obstacle)
+                    hammers_throw.remove(hammer_throw)
+                    game.player.has_hammer_power_up = False
+                    game.player.type = DEFAULT_TYPE
+                
 
 
     def draw(self, screen):
